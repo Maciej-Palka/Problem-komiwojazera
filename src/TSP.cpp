@@ -24,7 +24,63 @@ std::ostream& operator<<(std::ostream& os, const CostMatrix& cm) {
  * @return The vector of consecutive vertex.
  */
 path_t StageState::get_path() {
-    throw;  // TODO: Implement it!
+    path_t path;
+    if (unsorted_path_.size() == 0)
+    {
+        return path;
+    }
+
+    if (get_level() == matrix_.size() - 2)
+    {
+        vertex_t last1, last2;
+        std::size_t k = 0;
+        for (std::size_t r = 0; r < matrix_.size(); ++r)
+        {
+            for (std::size_t c = 0; c < matrix_.size(); ++c)
+            {
+                if (matrix_[r][c] != INF)
+                {
+                    if (k == 0)
+                    {
+                        last1 = vertex_t(r, c);
+                        k++;
+                    }
+                    else if (k == 1)
+                    {
+                        last2 = vertex_t(r, c);
+                        k++;
+                    }
+                }
+            }
+        }
+        unsorted_path_.push_back(last1);
+        unsorted_path_.push_back(last2);
+    }
+    std::size_t start_node = unsorted_path_[0].row;
+    path.push_back(start_node);
+    std::size_t current_node = unsorted_path_[0].col;
+
+    while (path.size() < unsorted_path_.size())
+    {
+        path.push_back(current_node);
+        auto it  = std::find_if(unsorted_path_.begin(), unsorted_path_.end(),
+            [&current_node](const vertex_t& v)
+            {
+                return v.row == current_node;
+            });
+
+        if (it != unsorted_path_.end())
+        {
+            current_node = it->col;
+        }
+        else
+        {
+            current_node = start_node;
+            break;
+        }
+    }
+    return path;
+
 }
 
 /**
@@ -32,7 +88,20 @@ path_t StageState::get_path() {
  * @return Vector of minimum values in row.
  */
 std::vector<cost_t> CostMatrix::get_min_values_in_rows() const {
-    throw;  // TODO: Implement it!
+    std::vector<cost_t> min_values;
+    for (const auto& row : matrix_)
+    {
+        cost_t min_val = INF;
+        for (cost_t val : row)
+        {
+            if (!is_inf(val) && val < min_val)
+            {
+                min_val = val;
+            }
+        }
+        min_values.push_back((min_val == INF) ? 0 : min_val);
+    }
+    return min_values;
 }
 
 /**
@@ -40,7 +109,21 @@ std::vector<cost_t> CostMatrix::get_min_values_in_rows() const {
  * @return Sum of values reduced in rows.
  */
 cost_t CostMatrix::reduce_rows() {
-    throw;  // TODO: Implement it!
+    std::vector<cost_t> min_values = get_min_values_in_rows();
+    cost_t sum_reduced = 0;
+    for (std::size_t r = 0; r <size(); ++r)
+    {
+        cost_t reduction = min_values [r];
+        sum_reduced += reduction;
+        for (std::size_t c =0; c <size(); ++c)
+        {
+            if (!is_inf(matrix_[r][c]))
+            {
+                matrix_[r][c] -= reduction;
+            }
+        }
+        return sum_reduced;
+    }
 }
 
 /**
@@ -48,8 +131,20 @@ cost_t CostMatrix::reduce_rows() {
  * @return Vector of minimum values in columns.
  */
 std::vector<cost_t> CostMatrix::get_min_values_in_cols() const {
-    std::vector<cost_t> min_values;
-    throw;  // TODO: Implement it!
+    std::vector<cost_t> min_values(size(), INF);
+    for (std::size_t c = 0; c< size(); ++c)
+    {
+        cost_t min_val = INF;
+        for (std::size_t r = 0; r< size(); ++r)
+        {
+            if (!is_inf(matrix_[r][c]) && matrix_[r][c] < min_val)
+            {
+                min_val = matrix_[r][c];
+            }
+        }
+        min_values[c] = (min_val == INF) ? 0 : min_val;
+    }
+    return min_values;
 }
 
 /**
@@ -57,7 +152,21 @@ std::vector<cost_t> CostMatrix::get_min_values_in_cols() const {
  * @return Sum of values reduced in columns.
  */
 cost_t CostMatrix::reduce_cols() {
-    throw;  // TODO: Implement it!
+    std::vector<cost_t> min_values = get_min_values_in_cols();
+    cost_t sum_reduced = 0;
+    for (std::size_t c = 0; c <size(); ++c)
+    {
+        cost_t reduction = min_values[c];
+        sum_reduced += reduction;
+        for (std::size_t r =0; r < size(); ++r)
+        {
+            if (!is_inf(matrix_[r][c]))
+            {
+                matrix_[r][c] -= reduction;
+            }
+        }
+    }
+    return sum_reduced;
 }
 
 /**
@@ -67,7 +176,27 @@ cost_t CostMatrix::reduce_cols() {
  * @return The sum of minimal values in row and col, excluding the intersection value.
  */
 cost_t CostMatrix::get_vertex_cost(std::size_t row, std::size_t col) const {
-    throw;  // TODO: Implement it!
+    cost_t min_in_row = INF;
+    for (std::size_t c = 0; c < size(); ++c)
+    {
+        if (c!=col && !is_inf(matrix_[row][c]) && matrix_[row][c] < min_in_row)
+        {
+            min_in_row = matrix_[row][c];
+        }
+    }
+
+    cost_t min_in_col = INF;
+    for (std::size_t r = 0; r < size(); ++r)
+    {
+        if (r!=row && !is_inf(matrix_[r][col]) && matrix_[r][col] < min_in_col)
+        {
+            min_in_col = matrix_[r][col];
+        }
+    }
+
+    cost_t row_cost = (min_in_row == INF) ? 0 : min_in_row;
+    cost_t col_cost = (min_in_col == INF) ? 0 : min_in_col;
+    return row_cost + col_cost;
 }
 
 /* PART 2 */
@@ -81,7 +210,29 @@ cost_t CostMatrix::get_vertex_cost(std::size_t row, std::size_t col) const {
  * @return The coordinates of the next vertex.
  */
 NewVertex StageState::choose_new_vertex() {
-    throw;  // TODO: Implement it!
+    cost_t max_cost = -1;
+    vertex_t best_vertex;
+
+    for (std::size_t r =0; r < matrix_.size(); ++r)
+    {
+        for (std::size_t c = 0; c < matrix_.size(); ++c)
+        {
+            if (matrix_[r][c] == 0)
+            {
+                cost_t current_cost =matrix_.get_vertex_cost(r,c);
+                if (current_cost > max_cost)
+                {
+                    max_cost = current_cost;
+                    best_vertex = vertex_t(r,c);
+                }
+            }
+        }
+    }
+    if (max_cost == -1)
+    {
+        return NewVertex(best_vertex, 0);
+    }
+    return NewVertex(best_vertex, max_cost);
 }
 
 /**
@@ -89,7 +240,15 @@ NewVertex StageState::choose_new_vertex() {
  * @param new_vertex
  */
 void StageState::update_cost_matrix(vertex_t new_vertex) {
-    throw;  // TODO: Implement it!
+    std::size_t r = new_vertex.row;
+    std::size_t c = new_vertex.col;
+
+    for (std::size_t k = 0; k < matrix_.size(); ++k)
+    {
+        matrix_[r][k] = INF;
+        matrix_[k][c] = INF;
+    }
+    matrix_[c][r] = INF;
 }
 
 /**
@@ -97,7 +256,10 @@ void StageState::update_cost_matrix(vertex_t new_vertex) {
  * @return The sum of reduced values.
  */
 cost_t StageState::reduce_cost_matrix() {
-    throw;  // TODO: Implement it!
+    cost_t cost = 0;
+    cost += matrix_.reduce_rows();
+    cost += matrix_.reduce_cols();
+    return cost;
 }
 
 /**
